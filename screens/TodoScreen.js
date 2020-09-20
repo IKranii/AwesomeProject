@@ -1,8 +1,10 @@
 import React , { useState, useEffect } from 'react';
 import TodoItem  from '../components/TodoItem';
-import { View ,Text, TouchableOpacity, FlatList } from 'react-native'
+import { View ,Text, TouchableOpacity, FlatList, YellowBox  } from 'react-native'
 import AsyncStorage from '@react-native-community/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+
+import { fb } from '../db_config';
 
 
 export default function TodoScreen({ navigation }) {    
@@ -15,9 +17,49 @@ export default function TodoScreen({ navigation }) {
     );
 
     useEffect(() => {               
-        readTodos();
+        //readTodos();
+        readTodosFirebase();
+        YellowBox.ignoreWarnings(['Setting a timer']);
     },[]);
    
+    const readTodosFirebase = async () => {
+        fb.firestore().collection("todos")
+            .onSnapshot((querySnapshot) => {
+            //.get().then((querySnapshot) => {
+                const todos = querySnapshot.docs.map(doc => doc.data());
+                
+                //WRITE TO ASYNC STORAGE
+                writeTodos(todos);
+
+                //SET STATE
+                setTodos(todos);                           
+            });            
+    }
+
+    const removeTodosFirebase = async (new_data) => {
+        fb.firestore().collection("todos")
+            .doc(new_data._id)
+            .delete()
+            .then(function() {
+                console.log("Firestore successfully deleted!");
+            })
+            .catch(function(error) {
+                console.error("Error writing document: ", error);
+            });          
+    }
+    const writeTodosFirebase = async (new_data) => {
+        fb.firestore().collection("todos")
+            .doc(new_data._id)
+            .set(new_data)
+            .then(function() {
+                console.log("Firestore successfully written!");
+            })
+            .catch(function(error) {
+                console.error("Error writing document: ", error);
+            });          
+    }         
+
+
 
     const onCreate = () => {
         let new_data = {
@@ -34,7 +76,9 @@ export default function TodoScreen({ navigation }) {
         //ASYNC STORAGE
         writeTodos(t);
         //บันทึกลง Storage
-            
+        
+        //UPDATE FIRESTORE
+        writeTodosFirebase(new_data);   
     };      
 
     const onUpdate = (new_title, _id) => {   
@@ -49,6 +93,11 @@ export default function TodoScreen({ navigation }) {
         //ASYNC STORAGE
         writeTodos(t);
         //บันทึกลง Storage
+
+        //UPDATE FIRESTORE
+        let new_data = t[index];
+        writeTodosFirebase(new_data);
+
     }; 
     const onCheck = (_id) => {
         let t = [...todos];
@@ -56,17 +105,26 @@ export default function TodoScreen({ navigation }) {
         //SET INVERSE VALUE BOOLEAN
         t[index].completed = ! t[index].completed;
         setTodos(t);
+
+        //UPDATE FIRESTORE
+        let new_data = t[index];
+        writeTodosFirebase(new_data);
+
     };    
     
     const onDelete = (_id) => {   
         //CLONE ARRAY FIRST
         let t = [...todos];
         let index = t.findIndex((item => item._id == _id));
-        t.splice(index, 1);
+        let removed_item = t.splice(index, 1);
         setTodos(t);
         //ASYNC STORAGE
         writeTodos(t);
         //บันทึกลง Storage
+
+        //UPDATE FIRESTORE
+        let new_data = removed_item[0];
+        removeTodosFirebase(new_data);
         
     };             
 

@@ -17,7 +17,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import TodoTab from './navigations/TodoTab';
 const RootStack = createStackNavigator();
 
-
+import { fb } from './db_config';
 
 export default function App() {
   return (
